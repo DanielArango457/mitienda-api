@@ -36,6 +36,9 @@ export class ProductosService {
   }
 
   actualizarProducto(id: number, data: ProductoRequestDTO): ProductoResponseDTO {
+        if (data.precio !== undefined && data.precio < 0) {
+      throw new AppExeption("PRECIO_INVALIDO", "El precio no puede ser negativo", 400);
+    }
     const productoActualizado = this.productosRepository.update(id, data);
 
     if (!productoActualizado) {
