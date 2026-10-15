@@ -1,49 +1,36 @@
+import { prisma } from "../config/prisma";
 import { Producto } from "../data/productos.model";
-import { productosData } from "../data/productos.data";
+import { ProductoRequestDTO } from "../dto/productos.dto";
 
 export class ProductosRepository {
-  findAll(): Producto[] {
-    return productosData;
+  async findAll(): Promise<Producto[]> {
+    return prisma.producto.findMany({ orderBy: { id: "asc" } });
   }
 
-  findById(id: number): Producto | undefined {
-    return productosData.find((producto) => producto.id === id);
+  async findById(id: number): Promise<Producto | null> {
+    return prisma.producto.findUnique({ where: { id } });
   }
 
-  create(producto: Producto): Producto {
-    productosData.push(producto);
-    return producto;
+  async create(data: ProductoRequestDTO): Promise<Producto> {
+    return prisma.producto.create({ data });
   }
 
-  update(id: number, data: Partial<Producto>): Producto | undefined {
-    const producto = this.findById(id);
+  async update(
+    id: number,
+    data: Partial<ProductoRequestDTO>,
+  ): Promise<Producto | null> {
+    const existente = await prisma.producto.findUnique({ where: { id } });
 
-    if (!producto) {
-      return undefined;
+    if (!existente) {
+      return null;
     }
 
-    Object.assign(producto, data);
-
-    return producto;
+    return prisma.producto.update({ where: { id }, data });
   }
 
-  delete(id: number): boolean {
-    const index = productosData.findIndex((producto) => producto.id === id);
+  async delete(id: number): Promise<boolean> {
+    const resultado = await prisma.producto.deleteMany({ where: { id } });
 
-    if (index === -1) {
-      return false;
-    }
-
-    productosData.splice(index, 1);
-
-    return true;
-  }
-
-  getLastId(): number {
-    if (productosData.length === 0) {
-      return 0;
-    }
-
-    return productosData[productosData.length - 1].id;
+    return resultado.count > 0;
   }
 }

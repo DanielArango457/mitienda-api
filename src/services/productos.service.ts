@@ -1,17 +1,16 @@
 import { ProductosRepository } from "../repositories/productos.repository";
-import { Producto } from "../data/productos.model";
 import { ProductoRequestDTO, ProductoResponseDTO } from "../dto/productos.dto";
 import { AppExeption } from "../exceptions/app.exception";
 
 export class ProductosService {
   constructor(private readonly productosRepository: ProductosRepository) {}
 
-  getProductos(): ProductoResponseDTO[] {
-    return this.productosRepository.findAll();
+  async getProductos(): Promise<ProductoResponseDTO[]> {
+    return await this.productosRepository.findAll();
   }
 
-  getProductoPorId(id: number): ProductoResponseDTO {
-    const producto = this.productosRepository.findById(id);
+  async getProductoPorId(id: number): Promise<ProductoResponseDTO> {
+    const producto = await this.productosRepository.findById(id);
 
     if (!producto) {
       throw new AppExeption("PRODUCTO_NO_ENCONTRADO", "Producto no encontrado", 404);
@@ -20,26 +19,23 @@ export class ProductosService {
     return producto;
   }
 
-  crearProducto(data: ProductoRequestDTO): ProductoResponseDTO {
+  async crearProducto(data: ProductoRequestDTO): Promise<ProductoResponseDTO> {
     if (data.precio < 0) {
       throw new AppExeption("PRECIO_INVALIDO", "El precio no puede ser negativo", 400);
     }
 
-    const nuevoId = this.productosRepository.getLastId() + 1;
-
-    const nuevoProducto: Producto = {
-      id: nuevoId,
-      ...data,
-    };
-
-    return this.productosRepository.create(nuevoProducto);
+    return await this.productosRepository.create(data);
   }
 
-  actualizarProducto(id: number, data: ProductoRequestDTO): ProductoResponseDTO {
-        if (data.precio !== undefined && data.precio < 0) {
+  async actualizarProducto(
+    id: number,
+    data: Partial<ProductoRequestDTO>,
+  ): Promise<ProductoResponseDTO> {
+    if (data.precio !== undefined && data.precio < 0) {
       throw new AppExeption("PRECIO_INVALIDO", "El precio no puede ser negativo", 400);
     }
-    const productoActualizado = this.productosRepository.update(id, data);
+
+    const productoActualizado = await this.productosRepository.update(id, data);
 
     if (!productoActualizado) {
       throw new AppExeption("PRODUCTO_NO_ENCONTRADO", "Producto no encontrado", 404);
@@ -48,8 +44,8 @@ export class ProductosService {
     return productoActualizado;
   }
 
-  eliminarProducto(id: number): void {
-    const eliminado = this.productosRepository.delete(id);
+  async eliminarProducto(id: number): Promise<void> {
+    const eliminado = await this.productosRepository.delete(id);
 
     if (!eliminado) {
       throw new AppExeption("PRODUCTO_NO_ENCONTRADO", "Producto no encontrado", 404);

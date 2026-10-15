@@ -4,31 +4,31 @@ import { ProductosService } from "../services/productos.service";
 export class ProductosController {
   constructor(private readonly productosService: ProductosService) {}
 
-  getProductos = (req: Request, res: Response): void => {
-    const productos = this.productosService.getProductos();
+  getProductos = async (req: Request, res: Response): Promise<void> => {
+    const productos = await this.productosService.getProductos();
     res.status(200).json(productos);
   };
 
-  getProductoPorId = (req: Request, res: Response): void => {
+  getProductoPorId = async (req: Request, res: Response): Promise<void> => {
     const id = Number(req.params.id);
-    const producto = this.productosService.getProductoPorId(id);
+    const producto = await this.productosService.getProductoPorId(id);
     res.status(200).json(producto);
   };
 
-  crearProducto = (req: Request, res: Response): void => {
-    const nuevoProducto = this.productosService.crearProducto(req.body);
+  crearProducto = async (req: Request, res: Response): Promise<void> => {
+    const nuevoProducto = await this.productosService.crearProducto(req.body);
     res.status(201).json(nuevoProducto);
   };
 
-  actualizarProducto = (req: Request, res: Response): void => {
+  actualizarProducto = async (req: Request, res: Response): Promise<void> => {
     const id = Number(req.params.id);
-    const productoActualizado = this.productosService.actualizarProducto(id, req.body);
+    const productoActualizado = await this.productosService.actualizarProducto(id, req.body);
     res.status(200).json(productoActualizado);
   };
 
-  eliminarProducto = (req: Request, res: Response): void => {
+  eliminarProducto = async (req: Request, res: Response): Promise<void> => {
     const id = Number(req.params.id);
-    this.productosService.eliminarProducto(id);
+    await this.productosService.eliminarProducto(id);
     res.status(204).send();
   };
 }
