@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { container } from "../config/container";
-import { ProductosController } from "../controllers/productos.controller";
+import { container } from "../../config/container";
+import { ProductosController } from "../../controllers/productos.controller";
 
 export const productosRouter = Router();
 

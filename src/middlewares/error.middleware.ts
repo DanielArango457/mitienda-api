@@ -16,6 +16,15 @@ export const errorMiddleware = (
     return;
   }
 
+  if (err instanceof SyntaxError && "body" in err) {
+    res.status(400).json({
+      code: "JSON_INVALIDO",
+      message: "El cuerpo de la petición no es un JSON válido",
+    });
+
+    return;
+  }
+
   res.status(500).json({
     code: "INTERNAL_SERVER_ERROR",
     message: "Internal server error",
