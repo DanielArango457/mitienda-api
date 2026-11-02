@@ -5,6 +5,9 @@ import { ProductosRepository } from "../repositories/productos.repository";
 import { AuthController } from "../controllers/auth.controller";
 import { AuthService } from "../services/auth.service";
 import { UsuariosRepository } from "../repositories/usuarios.repository";
+import { PedidosController } from "../controllers/pedidos.controller";
+import { PedidosService } from "../services/pedidos.service";
+import { PedidosRepository } from "../repositories/pedidos.repository";
 
 export const container = createContainer({
   injectionMode: InjectionMode.CLASSIC,
@@ -17,4 +20,7 @@ container.register({
   authController: asClass(AuthController).scoped(),
   authService: asClass(AuthService).scoped(),
   usuariosRepository: asClass(UsuariosRepository).scoped(),
+  pedidosController: asClass(PedidosController).scoped(),
+  pedidosService: asClass(PedidosService).scoped(),
+  pedidosRepository: asClass(PedidosRepository).scoped(),
 });
