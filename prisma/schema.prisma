@@ -9,11 +9,48 @@ datasource db {
 }
 
 model Producto {
-  id        Int    @id @default(autoincrement())
+  id        Int          @id @default(autoincrement())
   nombre    String
   precio    Int
   categoria String
   stock     Int
+  imagen    String?
+  items     PedidoItem[]
 
   @@map("productos")
+}
+
+model Usuario {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  nombre       String
+  passwordHash String   @map("password_hash")
+  rol          String   @default("ADMIN")
+  creadoEn     DateTime @default(now()) @map("creado_en")
+
+  @@map("usuarios")
+}
+
+model Pedido {
+  id       Int          @id @default(autoincrement())
+  cliente  String
+  telefono String
+  total    Int
+  creadoEn DateTime     @default(now()) @map("creado_en")
+  items    PedidoItem[]
+
+  @@map("pedidos")
+}
+
+model PedidoItem {
+  id         Int      @id @default(autoincrement())
+  pedidoId   Int      @map("pedido_id")
+  productoId Int?     @map("producto_id")
+  nombre     String
+  precio     Int
+  cantidad   Int
+  pedido     Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  producto   Producto? @relation(fields: [productoId], references: [id], onDelete: SetNull)
+
+  @@map("pedido_items")
 }

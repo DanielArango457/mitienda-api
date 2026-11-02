@@ -3,6 +3,7 @@ export interface ProductoRequestDTO {
   precio: number;
   categoria: string;
   stock: number;
+  imagen?: string | null;
 }
 
 export interface ProductoResponseDTO {
@@ -11,4 +12,5 @@ export interface ProductoResponseDTO {
   precio: number;
   categoria: string;
   stock: number;
+  imagen: string | null;
 }

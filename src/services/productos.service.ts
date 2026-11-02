@@ -19,7 +19,7 @@ export class ProductosService {
     }
 
     const campos = data as Record<string, unknown>;
-    const permitidos = ["nombre", "precio", "categoria", "stock"];
+    const permitidos = ["nombre", "precio", "categoria", "stock", "imagen"];
 
     for (const clave of Object.keys(campos)) {
       if (!permitidos.includes(clave)) {
@@ -50,6 +50,21 @@ export class ProductosService {
         throw new AppExeption(
           `${campo.toUpperCase()}_INVALIDO`,
           `El campo '${campo}' es obligatorio y debe ser un entero entre 0 y ${MAX_ENTERO}`,
+          400,
+        );
+      }
+    }
+
+    const imagen = campos["imagen"];
+    if (imagen !== undefined && imagen !== null) {
+      if (
+        typeof imagen !== "string" ||
+        imagen.length > 500 ||
+        !/^https?:\/\/\S+$/.test(imagen)
+      ) {
+        throw new AppExeption(
+          "IMAGEN_INVALIDO",
+          "El campo 'imagen' debe ser una URL que empiece por http:// o https://",
           400,
         );
       }
