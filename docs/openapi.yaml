@@ -1,0 +1,570 @@
+openapi: 3.0.3
+info:
+  title: MiTienda API
+  version: 1.0.0
+  description: |
+    API REST de **MiTienda**, una tienda virtual de ropa, calzado y accesorios.
+
+    - Los compradores **no necesitan registrarse**: pueden ver el catálogo y crear pedidos sin iniciar sesión.
+    - Las operaciones de administración (crear, editar y eliminar productos y ver pedidos) requieren
+      un **token JWT** de un usuario con rol `ADMIN`, enviado en la cabecera `Authorization: Bearer <token>`.
+    - El token se obtiene con `POST /auth/login` y dura 8 horas.
+    - Todos los errores tienen el formato `{ "code": "...", "message": "..." }`.
+servers:
+  - url: https://mitienda-api-5561.onrender.com/api/v1
+    description: Producción (Render). La primera petición puede tardar hasta 1 minuto si el servicio estaba dormido.
+  - url: http://localhost:3000/api/v1
+    description: Desarrollo local
+tags:
+  - name: Productos
+    description: Catálogo de productos. La lectura es pública; la escritura es solo para administradores.
+  - name: Autenticación
+    description: Inicio de sesión del administrador.
+  - name: Pedidos
+    description: Pedidos de los compradores. Crear es público; listar es solo para administradores.
+paths:
+  /productos:
+    get:
+      tags: [Productos]
+      summary: Listar todos los productos
+      description: Devuelve el catálogo completo ordenado por id. No requiere autenticación.
+      responses:
+        '200':
+          description: Lista de productos.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Producto'
+        '500':
+          $ref: '#/components/responses/ErrorInterno'
+    post:
+      tags: [Productos]
+      summary: Crear un producto
+      description: Solo administradores.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductoNuevo'
+            example:
+              nombre: Camiseta básica blanca
+              precio: 35000
+              categoria: Ropa
+              stock: 25
+              imagen: https://images.pexels.com/photos/12039633/pexels-photo-12039633.jpeg?auto=compress&cs=tinysrgb&w=600
+      responses:
+        '201':
+          description: Producto creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producto'
+        '400':
+          description: >
+            Datos inválidos. Códigos posibles: `CUERPO_INVALIDO`, `CAMPO_NO_PERMITIDO`,
+            `NOMBRE_INVALIDO`, `CATEGORIA_INVALIDO`, `PRECIO_INVALIDO`, `STOCK_INVALIDO`,
+            `IMAGEN_INVALIDO`, `JSON_INVALIDO`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: PRECIO_INVALIDO
+                message: "El campo 'precio' es obligatorio y debe ser un entero entre 0 y 2147483647"
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+        '500':
+          $ref: '#/components/responses/ErrorInterno'
+  /productos/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ProductoId'
+    get:
+      tags: [Productos]
+      summary: Obtener un producto por id
+      description: No requiere autenticación.
+      responses:
+        '200':
+          description: Producto encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producto'
+        '400':
+          description: El id no es un entero positivo (`ID_INVALIDO`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: ID_INVALIDO
+                message: El id debe ser un número entero positivo
+        '404':
+          $ref: '#/components/responses/ProductoNoEncontrado'
+        '500':
+          $ref: '#/components/responses/ErrorInterno'
+    put:
+      tags: [Productos]
+      summary: Actualizar un producto
+      description: >
+        Solo administradores. Se puede enviar solo los campos que cambian,
+        pero al menos uno (`CUERPO_VACIO` si el cuerpo viene vacío).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductoParcial'
+            example:
+              precio: 38000
+              stock: 20
+      responses:
+        '200':
+          description: Producto actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producto'
+        '400':
+          description: >
+            Id o datos inválidos. Códigos posibles: `ID_INVALIDO`, `CUERPO_INVALIDO`,
+            `CUERPO_VACIO`, `CAMPO_NO_PERMITIDO`, `NOMBRE_INVALIDO`, `CATEGORIA_INVALIDO`,
+            `PRECIO_INVALIDO`, `STOCK_INVALIDO`, `IMAGEN_INVALIDO`, `JSON_INVALIDO`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+        '404':
+          $ref: '#/components/responses/ProductoNoEncontrado'
+        '500':
+          $ref: '#/components/responses/ErrorInterno'
+    delete:
+      tags: [Productos]
+      summary: Eliminar un producto
+      description: >
+        Solo administradores. Los pedidos antiguos conservan el nombre y el precio
+        del producto eliminado (su `productoId` queda en `null`).
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Producto eliminado. No devuelve contenido.
+        '400':
+          description: El id no es un entero positivo (`ID_INVALIDO`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+        '404':
+          $ref: '#/components/responses/ProductoNoEncontrado'
+        '500':
+          $ref: '#/components/responses/ErrorInterno'
+  /auth/login:
+    post:
+      tags: [Autenticación]
+      summary: Iniciar sesión como administrador
+      description: >
+        Valida el correo y la contraseña (almacenada con hash bcrypt) y devuelve un
+        token JWT válido por 8 horas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginPeticion'
+            example:
+              email: admin@mitienda.com
+              password: "********"
+      responses:
+        '200':
+          description: Sesión iniciada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginRespuesta'
+        '400':
+          description: >
+            Datos inválidos. Códigos posibles: `CUERPO_INVALIDO`, `EMAIL_INVALIDO`,
+            `PASSWORD_INVALIDO`, `JSON_INVALIDO`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Correo o contraseña incorrectos (`CREDENCIALES_INVALIDAS`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: CREDENCIALES_INVALIDAS
+                message: Correo o contraseña incorrectos
+        '500':
+          $ref: '#/components/responses/ErrorInterno'
+  /pedidos:
+    post:
+      tags: [Pedidos]
+      summary: Crear un pedido
+      description: |
+        Público: el comprador no necesita iniciar sesión.
+
+        El servidor **calcula el total** con los precios actuales de la base de datos
+        (no confía en precios enviados por la app) y **descuenta el stock** dentro de una
+        transacción: si algún producto no tiene stock suficiente, no se guarda nada.
+        Si el mismo producto aparece varias veces en `items`, las cantidades se suman.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PedidoNuevo'
+            example:
+              cliente: Ana Gómez
+              telefono: "300 123 4567"
+              items:
+                - productoId: 1
+                  cantidad: 2
+                - productoId: 7
+                  cantidad: 1
+      responses:
+        '201':
+          description: Pedido creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pedido'
+        '400':
+          description: >
+            Datos inválidos. Códigos posibles: `CUERPO_INVALIDO`, `CAMPO_NO_PERMITIDO`,
+            `CLIENTE_INVALIDO`, `TELEFONO_INVALIDO`, `ITEMS_INVALIDO`, `PEDIDO_VACIO`,
+            `ITEM_INVALIDO`, `CANTIDAD_INVALIDA`, `TOTAL_INVALIDO`, `JSON_INVALIDO`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: PEDIDO_VACIO
+                message: El pedido debe tener al menos un producto
+        '404':
+          description: Alguno de los productos no existe (`PRODUCTO_NO_ENCONTRADO`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: PRODUCTO_NO_ENCONTRADO
+                message: El producto 99 no existe
+        '409':
+          description: No hay stock suficiente de algún producto (`STOCK_INSUFICIENTE`). No se guarda el pedido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: STOCK_INSUFICIENTE
+                message: "No hay suficiente stock de 'Mochila urbana' (disponible: 2)"
+        '500':
+          $ref: '#/components/responses/ErrorInterno'
+    get:
+      tags: [Pedidos]
+      summary: Listar los pedidos recibidos
+      description: Solo administradores. Devuelve los pedidos del más reciente al más antiguo, con sus productos.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de pedidos.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pedido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/SinPermiso'
+        '500':
+          $ref: '#/components/responses/ErrorInterno'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token obtenido en `POST /auth/login`. Cabecera `Authorization Bearer <token>`.
+  parameters:
+    ProductoId:
+      name: id
+      in: path
+      required: true
+      description: Identificador del producto (entero positivo).
+      schema:
+        type: integer
+        minimum: 1
+        example: 1
+  responses:
+    NoAutenticado:
+      description: >
+        Falta el token (`TOKEN_REQUERIDO`) o es inválido o está vencido (`TOKEN_INVALIDO`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: TOKEN_REQUERIDO
+            message: Debes iniciar sesión como administrador
+    SinPermiso:
+      description: El usuario no es administrador (`PERMISO_DENEGADO`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: PERMISO_DENEGADO
+            message: No tienes permiso para esta acción
+    ProductoNoEncontrado:
+      description: El producto no existe (`PRODUCTO_NO_ENCONTRADO`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: PRODUCTO_NO_ENCONTRADO
+            message: Producto no encontrado
+    ErrorInterno:
+      description: Error inesperado del servidor (`INTERNAL_SERVER_ERROR`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: INTERNAL_SERVER_ERROR
+            message: Internal server error
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Código estable del error, pensado para que la app decida qué mostrar.
+          example: PRODUCTO_NO_ENCONTRADO
+        message:
+          type: string
+          description: Mensaje legible en español.
+          example: Producto no encontrado
+    Producto:
+      type: object
+      required: [id, nombre, precio, categoria, stock, imagen]
+      properties:
+        id:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          example: Camiseta básica blanca
+        precio:
+          type: integer
+          minimum: 0
+          description: Precio en pesos colombianos (COP), sin decimales.
+          example: 35000
+        categoria:
+          type: string
+          example: Ropa
+        stock:
+          type: integer
+          minimum: 0
+          example: 25
+        imagen:
+          type: string
+          format: uri
+          nullable: true
+          maxLength: 500
+          description: URL de la foto (http o https). Puede ser `null`.
+          example: https://images.pexels.com/photos/12039633/pexels-photo-12039633.jpeg?auto=compress&cs=tinysrgb&w=600
+    ProductoNuevo:
+      type: object
+      required: [nombre, precio, categoria, stock]
+      additionalProperties: false
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+        precio:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+        categoria:
+          type: string
+          minLength: 1
+        stock:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+        imagen:
+          type: string
+          format: uri
+          nullable: true
+          maxLength: 500
+          pattern: '^https?://\S+$'
+    ProductoParcial:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+        precio:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+        categoria:
+          type: string
+          minLength: 1
+        stock:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+        imagen:
+          type: string
+          format: uri
+          nullable: true
+          maxLength: 500
+          pattern: '^https?://\S+$'
+    LoginPeticion:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: admin@mitienda.com
+        password:
+          type: string
+          format: password
+    LoginRespuesta:
+      type: object
+      required: [token, usuario]
+      properties:
+        token:
+          type: string
+          description: JWT firmado, válido por 8 horas.
+        usuario:
+          type: object
+          required: [id, nombre, email, rol]
+          properties:
+            id:
+              type: integer
+              example: 1
+            nombre:
+              type: string
+              example: Administrador
+            email:
+              type: string
+              format: email
+              example: admin@mitienda.com
+            rol:
+              type: string
+              example: ADMIN
+    PedidoItemNuevo:
+      type: object
+      required: [productoId, cantidad]
+      properties:
+        productoId:
+          type: integer
+          minimum: 1
+          example: 1
+        cantidad:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          example: 2
+    PedidoNuevo:
+      type: object
+      required: [cliente, telefono, items]
+      additionalProperties: false
+      properties:
+        cliente:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: Ana Gómez
+        telefono:
+          type: string
+          description: Entre 7 y 15 dígitos, con `+` inicial opcional. Se aceptan espacios y guiones.
+          example: "300 123 4567"
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/PedidoItemNuevo'
+    PedidoItem:
+      type: object
+      required: [id, pedidoId, productoId, nombre, precio, cantidad]
+      properties:
+        id:
+          type: integer
+          example: 10
+        pedidoId:
+          type: integer
+          example: 6
+        productoId:
+          type: integer
+          nullable: true
+          description: Es `null` si el producto fue eliminado después del pedido.
+          example: 1
+        nombre:
+          type: string
+          description: Nombre del producto al momento de la compra.
+          example: Camiseta básica blanca
+        precio:
+          type: integer
+          description: Precio unitario al momento de la compra.
+          example: 35000
+        cantidad:
+          type: integer
+          example: 2
+    Pedido:
+      type: object
+      required: [id, cliente, telefono, total, creadoEn, items]
+      properties:
+        id:
+          type: integer
+          example: 6
+        cliente:
+          type: string
+          example: Ana Gómez
+        telefono:
+          type: string
+          example: "300 123 4567"
+        total:
+          type: integer
+          description: Total calculado por el servidor, en COP.
+          example: 70000
+        creadoEn:
+          type: string
+          format: date-time
+          example: "2026-11-08T14:46:00.000Z"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PedidoItem'
