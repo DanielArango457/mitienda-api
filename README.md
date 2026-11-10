@@ -2,6 +2,18 @@
 
 API REST de MiTienda: productos, pedidos y acceso de administrador. Esta construida con Express + TypeScript, siguiendo una arquitectura por capas (Route -> Controller -> Service -> Repository -> Base de datos).
 
+## Enlaces
+
+| Que | Donde |
+|---|---|
+| API en produccion | https://mitienda-api-5561.onrender.com/api/v1/productos |
+| Especificacion OpenAPI | docs/openapi.yaml (en este repositorio) |
+| Documentacion (Wiki) | https://github.com/DanielArango457/mitienda-app/wiki |
+| App movil | https://github.com/DanielArango457/mitienda-app |
+| APK de la app | https://github.com/DanielArango457/mitienda-app/releases/tag/v1.0.0 |
+
+La API en produccion esta en el plan gratuito de Render: si lleva 15 minutos sin uso se duerme y la primera peticion puede tardar cerca de 1 minuto.
+
 ## Tecnologias
 
 - Node.js + Express 5
@@ -42,11 +54,15 @@ DATABASE_URL="postgresql://postgres:TU_CONTRASENA@localhost:5432/mitienda"
 JWT_SECRET=UNA_CADENA_LARGA_Y_SECRETA
 ADMIN_EMAIL=admin@mitienda.com
 ADMIN_PASSWORD=LA_CONTRASENA_DEL_ADMINISTRADOR
+CORS_ORIGINS=
 ```
+
+Tambien hay un archivo .env.example con estas variables y valores de ejemplo.
 
 - JWT_SECRET es obligatorio: sin el, el servidor no arranca. Se puede generar con:
   `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
 - ADMIN_EMAIL y ADMIN_PASSWORD definen la cuenta del administrador que crea el seed.
+- CORS_ORIGINS es opcional: lista de origenes web permitidos, separados por coma. Si se deja vacia, ningun sitio web externo puede llamar a la API (la app movil no se ve afectada, porque CORS solo aplica a navegadores).
 - El archivo .env no se sube a Git.
 
 4. Crear las tablas aplicando las migraciones (este proyecto usa Prisma 7 con un archivo de configuracion propio, por eso se indica --config):
@@ -79,6 +95,27 @@ npm run dev
 npm run build
 npm start
 ```
+
+## Despliegue en la nube
+
+La API esta desplegada en Render (servicio web, plan gratuito) y la base de datos en Neon (PostgreSQL).
+
+| Campo de Render | Valor |
+|---|---|
+| Runtime | Node |
+| Region | Ohio (US East) |
+| Branch | main |
+| Build Command | npm install --include=dev && npm run build:prod |
+| Start Command | npm start |
+
+Variables de entorno en Render: DATABASE_URL (cadena de Neon), JWT_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD y NODE_ENV=production. No se define PORT: Render lo asigna.
+
+El script build:prod genera el cliente de Prisma, aplica las migraciones, compila el proyecto y ejecuta el seed. Cada vez que se fusiona un cambio en main, Render despliega de nuevo automaticamente.
+
+## Documentacion de la API
+
+- La especificacion OpenAPI 3.0 esta en docs/openapi.yaml. Se puede abrir en https://editor.swagger.io (File > Import URL con https://raw.githubusercontent.com/DanielArango457/mitienda-api/main/docs/openapi.yaml) o importar en Postman.
+- La Wiki del proyecto tiene el contexto, los diagramas (casos de uso, secuencia, entidad-relacion, componentes y arquitectura), el analisis de calidad con SonarQube Cloud y la guia de instalacion: https://github.com/DanielArango457/mitienda-app/wiki
 
 ## Arquitectura
 
